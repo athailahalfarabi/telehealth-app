@@ -191,18 +191,19 @@ function BottomNavigation() {
               active && ps.navActive,
             ]}
             
-                onPress={() => {
-                if (tab.label === "Beranda") {
-                    router.replace("/dashboard");
-                } else if (tab.label === "AI Chat") {
-                    router.push("/ai-chat");
-                } else if (!active) {
-                    Alert.alert(
-                    tab.label,
-                    `Fitur ${tab.label} akan kita kerjakan berikutnya.`
-                    );
-                }
-                }}
+                
+          onPress={() => {
+            if (tab.label === "Beranda") {
+              router.replace("/dashboard");
+            } else if (tab.label === "AI Chat") {
+              router.push("/ai-chat");
+            } else if (tab.label === "Konsultasi") {
+              router.push("/experts");
+            } else if (tab.label === "Profil") {
+              // Sudah berada di halaman Profil
+            }
+          }}
+
 
           >
             <Ionicons

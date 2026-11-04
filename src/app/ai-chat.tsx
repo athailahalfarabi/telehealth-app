@@ -143,12 +143,11 @@ function BottomNavigation() {
                 router.replace("/dashboard");
               } else if (tab.label === "Profil") {
                 router.replace("/profile");
-              } else if (tab.label === "Konsultasi") {
-                Alert.alert(
-                  "Konsultasi",
-                  "Halaman konsultasi ahli gizi akan kita buat berikutnya."
-                );
+              } 
+              else if (tab.label === "Konsultasi") {
+                router.push("/experts");
               }
+
             }}
           >
             <Ionicons
