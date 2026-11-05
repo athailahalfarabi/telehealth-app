@@ -9,6 +9,7 @@ export type ConsultStatus =
 
 export type ConsultBooking = {
   id: string;
+  patient_id: string;
   status: ConsultStatus;
   amount_idr: number;
   expert: {
@@ -40,13 +41,16 @@ export type ConsultResult = {
 
 type Related<T> = T | T[] | null;
 
+
 type RawBooking = {
   id: string;
+  patient_id: string;
   status: ConsultStatus;
   amount_idr: number;
   nutritionists: Related<NonNullable<ConsultBooking["expert"]>>;
   consultation_slots: Related<NonNullable<ConsultBooking["slot"]>>;
 };
+
 
 function one<T>(value: Related<T>): T | null {
   return Array.isArray(value) ? value[0] ?? null : value;
@@ -55,6 +59,7 @@ function one<T>(value: Related<T>): T | null {
 function mapBooking(raw: RawBooking): ConsultBooking {
   return {
     id: raw.id,
+    patient_id: raw.patient_id,
     status: raw.status,
     amount_idr: raw.amount_idr,
     expert: one(raw.nutritionists),
@@ -64,6 +69,7 @@ function mapBooking(raw: RawBooking): ConsultBooking {
 
 const bookingSelect = `
   id,
+  patient_id,
   status,
   amount_idr,
   nutritionists(
@@ -99,16 +105,80 @@ export async function getMyConsultBookings() {
     .map(mapBooking);
 }
 
-export async function getMyConsultBooking(bookingId: string) {
-  const bookings = await getMyConsultBookings();
-  const found = bookings.find((item) => item.id === bookingId);
 
-  if (!found) {
-    throw new Error("Booking tidak ditemukan di akunmu.");
+export async function getMyConsultBooking(
+  bookingId: string
+): Promise<ConsultBooking> {
+  const { data: auth, error: authError } =
+    await supabase.auth.getUser();
+
+  if (authError || !auth.user) {
+    throw new Error("Silakan login kembali.");
   }
 
-  return found;
+  const userId = auth.user.id;
+
+  const { data: profile, error: roleError } =
+    await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+  if (roleError) throw roleError;
+
+  let query = supabase
+    .from("consultation_bookings")
+    .select(bookingSelect)
+    .eq("id", bookingId);
+
+  if (profile.role === "patient") {
+    // Pasien hanya membuka booking miliknya
+    query = query.eq("patient_id", userId);
+
+  } else if (profile.role === "nutritionist") {
+    // Cari ID ahli gizi yang sedang login
+    const { data: expert, error: expertError } =
+      await supabase
+        .from("nutritionists")
+        .select("id")
+        .eq("account_id", userId)
+        .maybeSingle();
+
+    if (expertError) throw expertError;
+
+    if (!expert) {
+      throw new Error(
+        "Akun ahli gizi belum terhubung."
+      );
+    }
+
+    // Ahli gizi hanya membuka booking miliknya
+    query = query.eq(
+      "nutritionist_id",
+      expert.id
+    );
+
+  } else {
+    throw new Error(
+      "Role akun tidak diizinkan membuka chat."
+    );
+  }
+
+  const { data, error } =
+    await query.maybeSingle();
+
+  if (error) throw error;
+
+  if (!data) {
+    throw new Error(
+      "Booking tidak ditemukan atau tidak dapat diakses."
+    );
+  }
+
+  return mapBooking(data as unknown as RawBooking);
 }
+
 
 export function consultDate(iso: string) {
   return new Date(iso).toLocaleDateString("id-ID", {

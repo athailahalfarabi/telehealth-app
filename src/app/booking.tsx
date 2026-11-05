@@ -6,6 +6,7 @@ import {
   Image,
   Pressable,
   ScrollView,
+  TextInput,
   Text,
   View,
 } from "react-native";
@@ -26,6 +27,48 @@ import {
   type Nutritionist,
 } from "../utils/consultation";
 
+
+
+type HealthSummary = {
+  nutrition_goal: string | null;
+  activity_level: string | null;
+  allergies: string[] | null;
+  medical_conditions: string[] | null;
+  notes: string | null;
+};
+
+const goalLabels: Record<string, string> = {
+  maintain: "Menjaga Berat Badan Ideal",
+  lose_weight: "Menurunkan Berat Badan",
+  gain_muscle: "Menaikkan Massa Otot",
+  blood_sugar: "Manajemen Gula Darah",
+};
+
+const activityLabels: Record<string, string> = {
+  low: "Ringan",
+  moderate: "Sedang",
+  high: "Tinggi",
+};
+
+const conditionLabels: Record<string, string> = {
+  gerd: "Maag / GERD",
+  diabetes: "Diabetes",
+  hypertension: "Hipertensi",
+};
+
+const allergyLabels: Record<string, string> = {
+  seafood: "Alergi Makanan Laut",
+  lactose: "Intoleransi Laktosa",
+};
+
+function readableList(
+  values: string[] | null,
+  labels: Record<string, string>
+) {
+  if (!values?.length) return "Tidak ada yang dicatat";
+  return values.map((v) => labels[v] ?? v).join(", ");
+}
+
 export default function BookingScreen() {
   const { id, slot } = useLocalSearchParams<{
     id: string;
@@ -37,6 +80,15 @@ export default function BookingScreen() {
   const [slots, setSlots] =
     useState<ConsultationSlot[]>([]);
   const [selectedId, setSelectedId] = useState("");
+
+  
+const [health, setHealth] =
+  useState<HealthSummary | null>(null);
+
+const [chiefConcern, setChiefConcern] = useState("");
+
+const [shareProfile, setShareProfile] = useState(false);
+
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -57,22 +109,40 @@ export default function BookingScreen() {
           return;
         }
 
-        const [expertResult, slotResult] =
-          await Promise.all([
-            supabase
-              .from("nutritionists")
-              .select("*")
-              .eq("id", id)
-              .single(),
+        
+const [expertResult, slotResult, healthResult] =
+  await Promise.all([
+    supabase
+      .from("nutritionists")
+      .select("*")
+      .eq("id", id)
+      .single(),
 
-            supabase
-              .from("consultation_slots")
-              .select("*")
-              .eq("nutritionist_id", id)
-              .eq("is_booked", false)
-              .gte("starts_at", new Date().toISOString())
-              .order("starts_at"),
-          ]);
+    supabase
+      .from("consultation_slots")
+      .select("*")
+      .eq("nutritionist_id", id)
+      .eq("is_booked", false)
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at"),
+
+    supabase
+      .from("patient_health_profiles")
+      .select(
+        "nutrition_goal, activity_level, allergies, medical_conditions, notes"
+      )
+      .eq("user_id", userData.user.id)
+      .maybeSingle(),
+  ]);
+
+if (healthResult.error) {
+  throw healthResult.error;
+}
+
+setHealth(
+  (healthResult.data as HealthSummary | null) ?? null
+);
+
 
         if (expertResult.error) throw expertResult.error;
         if (slotResult.error) throw slotResult.error;
@@ -127,15 +197,36 @@ export default function BookingScreen() {
       return;
     }
 
+    
+if (chiefConcern.trim().length < 5) {
+  Alert.alert(
+    "Pertanyaan Belum Diisi",
+    "Tuliskan apa yang ingin kamu konsultasikan, minimal 5 karakter."
+  );
+  return;
+}
+
+if (shareProfile && !health) {
+  Alert.alert(
+    "Profil Belum Tersedia",
+    "Lengkapi Profil Kesehatan atau nonaktifkan pilihan berbagi."
+  );
+  return;
+}
+
     setSubmitting(true);
 
     try {
-      const { data, error } = await supabase.rpc(
-        "create_consultation_booking",
-        {
-          p_slot_id: selected.id,
-        }
-      );
+      
+const { data, error } = await supabase.rpc(
+  "create_consultation_booking_with_intake",
+  {
+    p_slot_id: selected.id,
+    p_chief_concern: chiefConcern.trim(),
+    p_share_profile: shareProfile,
+  }
+);
+
 
       if (error) throw error;
 
@@ -212,9 +303,13 @@ export default function BookingScreen() {
       edges={["top", "bottom"]}
     >
       <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={cst.content}
-      >
+  showsVerticalScrollIndicator={false}
+  keyboardShouldPersistTaps="handled"
+  contentContainerStyle={[
+    cst.content,
+    { paddingBottom: 120 },
+  ]}
+>
         {/* HEADER */}
         <View style={cst.header}>
           <Pressable
@@ -494,6 +589,427 @@ export default function BookingScreen() {
             </Text>
           </View>
         </View>
+
+        
+{/* INFORMASI AWAL KONSULTASI */}
+<View
+  style={[
+    cst.card,
+    {
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: "#D7EFE2",
+      padding: 18,
+    },
+  ]}
+>
+  {/* HEADER */}
+  <View
+    style={{
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      marginBottom: 18,
+    }}
+  >
+    <View
+      style={{
+        width: 46,
+        height: 46,
+        borderRadius: 15,
+        backgroundColor: "#DDF8EA",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Ionicons
+        name="clipboard-outline"
+        size={23}
+        color={cg.green}
+      />
+    </View>
+
+    <View style={{ flex: 1 }}>
+      <Text
+        style={{
+          fontSize: 16,
+          fontWeight: "800",
+          color: cg.greenDark,
+        }}
+      >
+        Informasi Awal Konsultasi
+      </Text>
+
+      <Text
+        style={{
+          color: cg.muted,
+          fontSize: 11,
+          lineHeight: 17,
+          marginTop: 4,
+        }}
+      >
+        Bantu ahli gizi memahami kebutuhanmu.
+      </Text>
+    </View>
+  </View>
+
+  {/* JUDUL PROFIL */}
+  <View
+    style={{
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+    }}
+  >
+    <Text
+      style={{
+        fontSize: 13,
+        fontWeight: "800",
+        color: cg.greenDark,
+      }}
+    >
+      Ringkasan Profil Kesehatan
+    </Text>
+
+    <View
+      style={{
+        backgroundColor: "#E5FAEF",
+        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 10,
+          color: cg.green,
+          fontWeight: "700",
+        }}
+      >
+        {health ? "✓ Sudah Terisi" : "Belum Terisi"}
+      </Text>
+    </View>
+  </View>
+
+  {health ? (
+    <>
+      {/* DUA KARTU INFORMASI */}
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 10,
+          marginBottom: 12,
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "#F0FAF5",
+            padding: 14,
+            borderRadius: 17,
+            minHeight: 125,
+          }}
+        >
+          <Ionicons
+            name="flag-outline"
+            size={20}
+            color={cg.green}
+          />
+
+          <Text
+            style={{
+              fontSize: 11,
+              color: cg.muted,
+              marginTop: 11,
+            }}
+          >
+            Target Nutrisi
+          </Text>
+
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: "700",
+              color: cg.greenDark,
+              marginTop: 5,
+            }}
+          >
+            {health.nutrition_goal
+              ? goalLabels[health.nutrition_goal] ??
+                health.nutrition_goal
+              : "Belum diisi"}
+          </Text>
+        </View>
+
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "#F4F4FC",
+            padding: 14,
+            borderRadius: 17,
+            minHeight: 125,
+          }}
+        >
+          <Ionicons
+            name="walk-outline"
+            size={20}
+            color={cg.green}
+          />
+
+          <Text
+            style={{
+              fontSize: 11,
+              color: cg.muted,
+              marginTop: 11,
+            }}
+          >
+            Aktivitas Harian
+          </Text>
+
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: "700",
+              color: cg.greenDark,
+              marginTop: 5,
+            }}
+          >
+            {health.activity_level
+              ? activityLabels[health.activity_level] ??
+                health.activity_level
+              : "Belum diisi"}
+          </Text>
+        </View>
+      </View>
+
+      {/* RIWAYAT & CATATAN */}
+      <View
+        style={{
+          backgroundColor: "#F7F9F8",
+          borderRadius: 17,
+          padding: 15,
+          marginBottom: 18,
+          gap: 9,
+        }}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={19}
+            color={cg.green}
+          />
+
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "800",
+              color: cg.greenDark,
+            }}
+          >
+            Riwayat & Catatan
+          </Text>
+        </View>
+
+        <Text style={{ fontSize: 12, color: cg.text }}>
+          Alergi:{" "}
+          {readableList(
+            health.allergies,
+            allergyLabels
+          )}
+        </Text>
+
+        <Text style={{ fontSize: 12, color: cg.text }}>
+          Kondisi yang dilaporkan:{" "}
+          {readableList(
+            health.medical_conditions,
+            conditionLabels
+          )}
+        </Text>
+
+        <Text
+          style={{
+            fontSize: 12,
+            color: cg.text,
+            lineHeight: 18,
+          }}
+        >
+          Catatan:{" "}
+          {health.notes?.trim() || "Tidak ada"}
+        </Text>
+      </View>
+    </>
+  ) : (
+    <View
+      style={{
+        padding: 16,
+        borderRadius: 16,
+        backgroundColor: "#F4F7F6",
+        marginBottom: 18,
+        gap: 7,
+      }}
+    >
+      <Text
+        style={{
+          fontWeight: "700",
+          color: cg.greenDark,
+        }}
+      >
+        Profil Kesehatan belum tersedia
+      </Text>
+
+      <Text
+        style={{
+          fontSize: 12,
+          color: cg.muted,
+          lineHeight: 18,
+        }}
+      >
+        Kamu tetap bisa booking tanpa membagikan
+        Profil Kesehatan.
+      </Text>
+    </View>
+  )}
+
+  {/* INPUT PERTANYAAN */}
+  <Text
+    style={{
+      fontSize: 14,
+      fontWeight: "800",
+      color: cg.greenDark,
+      marginBottom: 7,
+    }}
+  >
+    Apa yang ingin kamu konsultasikan?
+  </Text>
+
+  <Text
+    style={{
+      fontSize: 11,
+      color: cg.muted,
+      lineHeight: 17,
+      marginBottom: 12,
+    }}
+  >
+    Ceritakan pertanyaan atau tujuan konsultasi
+    khusus untuk sesi ini.
+  </Text>
+
+  <TextInput
+    value={chiefConcern}
+    onChangeText={setChiefConcern}
+    multiline
+    maxLength={500}
+    textAlignVertical="top"
+    placeholder="Contoh: Saya ingin mengatur jadwal makan agar lebih teratur..."
+    placeholderTextColor="#A3ADA7"
+    style={{
+      minHeight: 115,
+      backgroundColor: "#F8FAF9",
+      borderWidth: 1,
+      borderColor: "#DDEAE3",
+      borderRadius: 17,
+      padding: 15,
+      fontSize: 13,
+      lineHeight: 20,
+      color: cg.text,
+    }}
+  />
+
+  <Text
+    style={{
+      alignSelf: "flex-end",
+      fontSize: 10,
+      color: cg.muted,
+      marginTop: 7,
+      marginBottom: 17,
+    }}
+  >
+    {chiefConcern.length}/500 karakter
+  </Text>
+
+  {/* PERSETUJUAN BERBAGI PROFIL */}
+  <Pressable
+    accessibilityRole="checkbox"
+    accessibilityState={{
+      checked: shareProfile,
+      disabled: !health,
+    }}
+    disabled={!health}
+    onPress={() =>
+      setShareProfile((previous) => !previous)
+    }
+    style={{
+      flexDirection: "row",
+      gap: 11,
+      alignItems: "flex-start",
+      padding: 14,
+      backgroundColor: "#EBF9F1",
+      borderRadius: 16,
+      opacity: health ? 1 : 0.6,
+    }}
+  >
+    <Ionicons
+      name={
+        shareProfile
+          ? "checkbox"
+          : "square-outline"
+      }
+      size={24}
+      color={cg.green}
+    />
+
+    <Text
+      style={{
+        flex: 1,
+        fontSize: 12,
+        lineHeight: 19,
+        color: cg.greenDark,
+      }}
+    >
+      Saya setuju membagikan ringkasan Profil
+      Kesehatan yang ditampilkan di atas kepada
+      ahli gizi yang saya pilih untuk konsultasi ini.
+    </Text>
+  </Pressable>
+
+  {/* KETERANGAN PRIVASI */}
+  <View
+    style={{
+      flexDirection: "row",
+      gap: 8,
+      marginTop: 14,
+      alignItems: "flex-start",
+    }}
+  >
+    <Ionicons
+      name="lock-closed-outline"
+      size={15}
+      color={cg.green}
+    />
+
+    <Text
+      style={{
+        flex: 1,
+        fontSize: 10,
+        lineHeight: 16,
+        color: cg.muted,
+      }}
+    >
+      Pertanyaan sesi akan terlihat oleh ahli gizi
+      setelah pembayaran simulasi terkonfirmasi.
+      Data Profil Kesehatan hanya dibagikan jika
+      kamu memberikan persetujuan.
+    </Text>
+  </View>
+</View>
+
 
         {/* RINGKASAN BOOKING */}
         <View style={cst.card}>

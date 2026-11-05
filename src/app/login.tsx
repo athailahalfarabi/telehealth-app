@@ -63,9 +63,25 @@ export default function LoginScreen() {
           "Profil pengguna belum ditemukan di Supabase."
         );
       }
+      
+      // Mengarahkan pengguna berdasarkan role
+      if (profile.role === "nutritionist") {
+        // Ahli gizi masuk dashboard khusus
+        router.replace("/nutritionist-dashboard");
 
-      // Sementara menuju halaman pengujian login
-      router.replace("/auth-home");
+      } else if (profile.role === "patient") {
+        // Pasien tetap masuk halaman sebelumnya
+        router.replace("/auth-home");
+ 
+} else if (profile.role === "admin") {
+  router.replace("/admin-dashboard");
+
+      } else {
+        throw new Error(
+          "Role akun tidak dikenali."
+        );
+      }
+
 
     } catch (err) {
       Alert.alert(

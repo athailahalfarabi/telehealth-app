@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
+  type ImageSourcePropType,
   ScrollView,
   Text,
   TextInput,
@@ -25,6 +26,25 @@ import {
 
 type Filter = "all" | Nutritionist["focus"];
 
+type NutritionistWithPhoto = Nutritionist & {
+  photo_storage_path?: string | null;
+};
+
+function photoSource(expert: NutritionistWithPhoto): ImageSourcePropType | null {
+  const path = expert.photo_storage_path?.trim();
+  if (path) {
+    const { data } = supabase.storage
+      .from("nutritionist-photos")
+      .getPublicUrl(path);
+    return { uri: data.publicUrl };
+  }
+
+  if (expert.photo_key === "female" || expert.photo_key === "male") {
+    return doctorPhotos[expert.photo_key];
+  }
+  return null;
+}
+
 const filters: { value: Filter; label: string }[] = [
   { value: "all", label: "Semua" },
   { value: "weight", label: "Berat Badan" },
@@ -37,10 +57,13 @@ function NutritionistCard({
   recommended,
   hasSlots,
 }: {
-  expert: Nutritionist;
+  expert: NutritionistWithPhoto;
   recommended: boolean;
   hasSlots: boolean;
 }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const source = photoSource(expert);
+
   return (
     <View
       style={[
@@ -50,11 +73,18 @@ function NutritionistCard({
     >
       <View style={cst.expertTop}>
         <View style={cst.photoBox}>
-          <Image
-            source={doctorPhotos[expert.photo_key]}
-            style={cst.photo}
-            resizeMode="cover"
-          />
+          {source && !photoFailed ? (
+            <Image
+              source={source}
+              style={cst.photo}
+              resizeMode="cover"
+              onError={() => setPhotoFailed(true)}
+            />
+          ) : (
+            <View style={[cst.photo, { alignItems: "center", justifyContent: "center", backgroundColor: "#E8F7EF" }]}>
+              <Ionicons name="person-outline" size={35} color={cg.green} />
+            </View>
+          )}
 
           {hasSlots && <View style={cst.onlineDot} />}
         </View>
@@ -152,7 +182,7 @@ function NutritionistCard({
 }
 
 export default function ExpertsScreen() {
-  const [experts, setExperts] = useState<Nutritionist[]>([]);
+  const [experts, setExperts] = useState<NutritionistWithPhoto[]>([]);
   const [slots, setSlots] = useState<ConsultationSlot[]>([]);
   const [goal, setGoal] = useState<string | null>(null);
   const [search, setSearch] = useState("");

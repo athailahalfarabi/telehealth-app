@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ComponentRef, useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -38,7 +38,7 @@ export default function ConsultationChatScreen() {
     bookingId: string;
   }>();
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
   const [booking, setBooking] =
     useState<ConsultBooking | null>(null);
@@ -47,10 +47,12 @@ export default function ConsultationChatScreen() {
     useState<ConsultMessage[]>([]);
 
   const [myId, setMyId] = useState("");
+  const [isNutritionist, setIsNutritionist] = useState(false);
+  const [patientName, setPatientName] = useState("");
+  const backPath = isNutritionist ? "/nutritionist-schedule" : "/my-schedule";
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [finishing, setFinishing] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [now, setNow] = useState(new Date());
 
@@ -97,15 +99,53 @@ export default function ConsultationChatScreen() {
             return;
           }
 
-          const currentBooking =
-            await getMyConsultBooking(bookingId);
+          
+const { data: myProfile, error: profileError } =
+  await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", auth.user.id)
+    .single();
 
-          if (!active) return;
+if (profileError) throw profileError;
 
-          setMyId(auth.user.id);
-          setBooking(currentBooking);
+const currentBooking =
+  await getMyConsultBooking(bookingId);
 
-          await refreshMessages();
+const nutritionistRole =
+  myProfile.role === "nutritionist";
+
+let name = "Pasien";
+
+if (nutritionistRole) {
+  const { data: patientProfile, error: patientError } =
+    await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", currentBooking.patient_id)
+      .maybeSingle();
+
+  if (patientError) {
+    console.warn(
+      "Nama pasien belum dapat dibaca:",
+      patientError.message
+    );
+  }
+
+  name =
+    patientProfile?.full_name?.trim() ||
+    "Pasien";
+}
+
+if (!active) return;
+
+setMyId(auth.user.id);
+setIsNutritionist(nutritionistRole);
+setPatientName(name);
+setBooking(currentBooking);
+
+await refreshMessages();
+
         } catch (error) {
           if (active) {
             setErrorText(
@@ -239,65 +279,6 @@ export default function ConsultationChatScreen() {
     }
   }
 
-  function askFinish() {
-    if (!booking) return;
-
-    if (
-      booking.status !== "paid_simulated" ||
-      !hasStarted
-    ) {
-      Alert.alert(
-        "Belum Bisa Diakhiri",
-        "Sesi hanya dapat diakhiri setelah jadwal konsultasi dimulai."
-      );
-      return;
-    }
-
-    Alert.alert(
-      "Akhiri Konsultasi?",
-      "Setelah sesi diakhiri, pesan baru tidak dapat dikirim. Ringkasan akan diisi oleh ahli gizi.",
-      [
-        { text: "Batal", style: "cancel" },
-        {
-          text: "Akhiri",
-          style: "destructive",
-          onPress: () => {
-            void finishConsultation();
-          },
-        },
-      ]
-    );
-  }
-
-  async function finishConsultation() {
-    if (!booking || finishing) return;
-
-    setFinishing(true);
-
-    try {
-      const { error } = await supabase.rpc(
-        "finish_consultation",
-        { p_booking_id: booking.id }
-      );
-
-      if (error) throw error;
-
-      router.replace({
-        pathname: "/consultation-result",
-        params: { bookingId: booking.id },
-      });
-    } catch (error) {
-      Alert.alert(
-        "Gagal Mengakhiri Sesi",
-        error instanceof Error
-          ? error.message
-          : "Coba lagi."
-      );
-    } finally {
-      setFinishing(false);
-    }
-  }
-
   if (loading) {
     return (
       <SafeAreaView
@@ -339,7 +320,7 @@ export default function ConsultationChatScreen() {
 
         <Pressable
           style={fs.primary}
-          onPress={() => router.replace("/my-schedule")}
+          onPress={() => router.replace(backPath)}
         >
           <Text style={fs.primaryText}>
             Kembali ke Jadwal
@@ -351,14 +332,18 @@ export default function ConsultationChatScreen() {
 
   return (
     <SafeAreaView
-      style={fs.screen}
+      style={[fs.screen, { backgroundColor: "#F8F7FD" }]}
       edges={["top", "bottom"]}
     >
-      {/* HEADER CHAT */}
-      <View style={fs.chatHeader}>
+      {/* HEADER CHAT: desain hijau-putih untuk kedua role */}
+      <View style={[fs.chatHeader, {
+        backgroundColor: "#FFFFFF",
+        borderBottomWidth: 1,
+        borderBottomColor: "#E5EDE8",
+      }]}>
         <Pressable
           onPress={() =>
-            router.replace("/my-schedule")
+            router.replace(backPath)
           }
         >
           <Ionicons
@@ -368,12 +353,33 @@ export default function ConsultationChatScreen() {
           />
         </Pressable>
 
-        <ConsultPhoto
-          photoKey={
-            booking.expert?.photo_key ?? "female"
-          }
-          size={43}
-        />
+        
+{isNutritionist ? (
+  <View
+    style={{
+      width: 43,
+      height: 43,
+      borderRadius: 22,
+      backgroundColor: "#E0F3E9",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <Ionicons
+      name="person-outline"
+      size={23}
+      color={cf.green}
+    />
+  </View>
+) : (
+  <ConsultPhoto
+    photoKey={
+      booking.expert?.photo_key ?? "female"
+    }
+    size={43}
+  />
+)}
+
 
         <View style={{ flex: 1 }}>
           <Text
@@ -384,42 +390,55 @@ export default function ConsultationChatScreen() {
             }}
             numberOfLines={2}
           >
-            {booking.expert?.display_name ??
-              "Ahli Gizi"}
+            {isNutritionist
+  ? patientName
+  : booking.expert?.display_name ?? "Ahli Gizi"}
           </Text>
 
           <Text style={fs.headerSubtitle}>
-            Konsultasi Gizi Online
+            {isNutritionist ? "Pasien · Chat Konsultasi" : "Ahli Gizi · Chat Konsultasi"}
           </Text>
         </View>
 
-        <Pressable
-          style={{
-            borderRadius: 22,
-            borderWidth: 1,
-            borderColor: "#F4B7B8",
-            backgroundColor: "#FFF1F1",
-            paddingHorizontal: 12,
-            paddingVertical: 9,
-          }}
-          onPress={askFinish}
-          disabled={finishing}
-        >
-          <Text
+        {isNutritionist && booking.status === "paid_simulated" && (
+          <Pressable
             style={{
-              color: "#BB3238",
-              fontSize: 11,
-              fontWeight: "700",
-              textAlign: "center",
+              borderRadius: 22,
+              borderWidth: 1,
+              borderColor: "#F4B7B8",
+              backgroundColor: "#FFF1F1",
+              paddingHorizontal: 12,
+              paddingVertical: 9,
+              opacity: hasStarted ? 1 : 0.5,
             }}
+            disabled={!hasStarted}
+            onPress={() =>
+              router.push({
+                pathname: "/nutritionist-session-result",
+                params: { bookingId: booking.id },
+              })
+            }
           >
-            Akhiri{"\n"}Konsultasi
-          </Text>
-        </Pressable>
+            <Text
+              style={{
+                color: "#BB3238",
+                fontSize: 11,
+                fontWeight: "700",
+                textAlign: "center",
+              }}
+            >
+              Selesaikan{"\n"}Konsultasi
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       {/* STATUS SESI */}
-      <View style={fs.chatStatus}>
+      <View style={[fs.chatStatus, {
+        backgroundColor: "#EDFBF4",
+        borderBottomWidth: 1,
+        borderBottomColor: "#E0F1E8",
+      }]}>
         <Text
           style={{
             fontSize: 11,
@@ -427,8 +446,8 @@ export default function ConsultationChatScreen() {
             flex: 1,
           }}
         >
-          <Ionicons name="lock-closed-outline" size={14} />
-          {"  "}Sesi Konsultasi
+          <Ionicons name="checkmark-circle-outline" size={14} />
+          {"  "}{canChat ? "Sesi berlangsung" : "Sesi konsultasi"}
         </Text>
 
         <Text
@@ -453,6 +472,7 @@ export default function ConsultationChatScreen() {
         {/* PESAN CHAT */}
         <ScrollView
           ref={scrollRef}
+          style={{ backgroundColor: "#F8F7FD" }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={fs.chatContent}
@@ -532,12 +552,19 @@ export default function ConsultationChatScreen() {
                         mine
                           ? fs.bubbleMine
                           : fs.bubbleOther,
+                        {
+                          backgroundColor: mine ? "#087B58" : "#FFFFFF",
+                          borderColor: mine ? "#087B58" : "#E7EEE9",
+                          borderWidth: mine ? 0 : 1,
+                          borderRadius: 15,
+                        },
                       ]}
                     >
                       <Text
                         style={[
                           fs.bubbleText,
                           mine && fs.bubbleMineText,
+                          { color: mine ? "#FFFFFF" : "#244436" },
                         ]}
                       >
                         {message.body}
@@ -575,7 +602,11 @@ export default function ConsultationChatScreen() {
         </ScrollView>
 
         {/* INPUT PESAN */}
-        <View style={fs.chatComposer}>
+        <View style={[fs.chatComposer, {
+          backgroundColor: "#FFFFFF",
+          borderTopColor: "#E6EDE9",
+          borderTopWidth: 1,
+        }]}>
           <View style={fs.inputRow}>
             <TextInput
               style={fs.input}
@@ -618,9 +649,8 @@ export default function ConsultationChatScreen() {
           <Text style={[fs.footHint, {
             marginTop: 9,
           }]}>
-            Percakapan hanya dapat diakses oleh
-            peserta konsultasi. Gunakan data
-            fiktif selama pengujian.
+            Chat untuk peserta sesi konsultasi.
+            Gunakan data fiktif selama pengujian.
           </Text>
         </View>
       </KeyboardAvoidingView>
