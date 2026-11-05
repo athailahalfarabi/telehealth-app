@@ -323,22 +323,90 @@ patientLabel:
         <Text style={s.welcome}>Selamat Datang, Admin!</Text>
         <Text style={s.description}>Ringkasan operasional layanan gizi hari ini</Text>
 
-        <View style={s.quickActions}>
-          <Pressable
-            style={[s.quickButton, s.quickPrimary]}
-            onPress={() => router.push("/admin-nutritionist-create")}
-          >
-            <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
-            <Text style={s.quickPrimaryText}>Tambah Ahli Gizi</Text>
-          </Pressable>
-          <Pressable
-            style={[s.quickButton, s.quickOutline]}
-            onPress={() => futurePage("Kelola Jadwal")}
-          >
-            <Ionicons name="calendar-outline" size={16} color={GREEN} />
-            <Text style={s.quickOutlineText}>Kelola Jadwal</Text>
-          </Pressable>
-        </View>
+        
+{/* TOMBOL CEPAT ADMIN */}
+<View style={s.quickActions}>
+  <Pressable
+    style={[s.quickButton, s.quickPrimary]}
+    onPress={() => router.push("/admin-nutritionist-create")}
+  >
+    <Ionicons
+      name="person-add-outline"
+      size={16}
+      color="#FFFFFF"
+    />
+    <Text style={s.quickPrimaryText}>
+      Tambah Ahli Gizi
+    </Text>
+  </Pressable>
+
+  <Pressable
+    style={[s.quickButton, s.quickOutline]}
+    onPress={() => futurePage("Kelola Jadwal")}
+  >
+    <Ionicons
+      name="calendar-outline"
+      size={16}
+      color={GREEN}
+    />
+    <Text style={s.quickOutlineText}>
+      Kelola Jadwal
+    </Text>
+  </Pressable>
+</View>
+
+{/* TOMBOL PENGAJUAN MITRA - BARIS BARU */}
+<Pressable
+  onPress={() => router.push("/admin-applications")}
+  style={{
+    marginTop: 10,
+    marginBottom: 12,
+    backgroundColor: "#EAF8EF",
+    borderWidth: 1,
+    borderColor: "#CBEAD8",
+    borderRadius: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  }}
+>
+  <Ionicons
+    name="document-text-outline"
+    size={20}
+    color={GREEN}
+  />
+
+  <View style={{ flex: 1 }}>
+    <Text
+      style={{
+        fontSize: 13,
+        fontWeight: "700",
+        color: "#173C2D",
+      }}
+    >
+      Pengajuan Mitra
+    </Text>
+
+    <Text
+      style={{
+        fontSize: 10,
+        color: "#71877B",
+        marginTop: 3,
+      }}
+    >
+      Lihat pengajuan calon ahli gizi
+    </Text>
+  </View>
+
+  <Ionicons
+    name="chevron-forward"
+    size={18}
+    color={GREEN}
+  />
+</Pressable>
+
 
         {loading && !summary ? (
           <View style={s.center}>

@@ -257,6 +257,30 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
+
+        <Pressable
+          onPress={() => router.push("/nutritionist-apply")}
+          style={{
+            marginTop: 16,
+            paddingVertical: 14,
+            borderWidth: 1.5,
+            borderColor: "#087A55",
+            borderRadius: 24,
+            alignItems: "center",
+            backgroundColor: "#F0FFF7",
+          }}
+        >
+          <Text
+            style={{
+              color: "#087A55",
+              fontWeight: "700",
+              fontSize: 13,
+            }}
+          >
+            Gabung sebagai Mitra Ahli Gizi
+          </Text>
+        </Pressable>
+
           {/* PINDAH KE REGISTER */}
           <Pressable
             style={styles.authFooter}
