@@ -67,8 +67,10 @@ function todayBoundsWib() {
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(new Date());
-  const find = (part: string) => Number(parts.find((p) => p.type === part)?.value);
-  const startMs = Date.UTC(find("year"), find("month") - 1, find("day")) - 7 * 3600000;
+  const find = (part: string) =>
+    Number(parts.find((p) => p.type === part)?.value);
+  const startMs =
+    Date.UTC(find("year"), find("month") - 1, find("day")) - 7 * 3600000;
   return {
     start: new Date(startMs).toISOString(),
     end: new Date(startMs + 86400000).toISOString(),
@@ -95,18 +97,23 @@ function displaySchedule(iso: string | null) {
       month: "short",
     }) +
     " · " +
-    date.toLocaleTimeString("id-ID", {
-      timeZone: ZONE,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).replace(".", ":") +
+    date
+      .toLocaleTimeString("id-ID", {
+        timeZone: ZONE,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+      .replace(".", ":") +
     " WIB"
   );
 }
 
 function relativeTime(iso: string) {
-  const minutes = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  const minutes = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(iso).getTime()) / 60000),
+  );
   if (minutes < 1) return "Baru saja";
   if (minutes < 60) return `${minutes} menit lalu`;
   if (minutes < 1440) return `${Math.floor(minutes / 60)} jam lalu`;
@@ -129,7 +136,10 @@ function statusMeta(status: string) {
 }
 
 function futurePage(name: string) {
-  Alert.alert("Tahap berikutnya", `Halaman ${name} akan kita buat setelah Dashboard Admin selesai.`);
+  Alert.alert(
+    "Tahap berikutnya",
+    `Halaman ${name} akan kita buat setelah Dashboard Admin selesai.`,
+  );
 }
 
 function StatCard({
@@ -187,24 +197,30 @@ export default function AdminDashboard() {
       }
 
       const bounds = todayBoundsWib();
-      const [expertResponse, todayResponse, completedResponse, bookingResponse] =
-        await Promise.all([
-          supabase.from("nutritionists").select("id, display_name, account_id"),
-          supabase
-            .from("consultation_bookings")
-            .select("id", { count: "exact", head: true })
-            .gte("created_at", bounds.start)
-            .lt("created_at", bounds.end),
-          supabase
-            .from("consultation_bookings")
-            .select("id", { count: "exact", head: true })
-            .eq("status", "completed"),
-          supabase
-            .from("consultation_bookings")
-            .select("id, patient_id, nutritionist_id, slot_id, status, created_at")
-            .order("created_at", { ascending: false })
-            .limit(5),
-        ]);
+      const [
+        expertResponse,
+        todayResponse,
+        completedResponse,
+        bookingResponse,
+      ] = await Promise.all([
+        supabase.from("nutritionists").select("id, display_name, account_id"),
+        supabase
+          .from("consultation_bookings")
+          .select("id", { count: "exact", head: true })
+          .gte("created_at", bounds.start)
+          .lt("created_at", bounds.end),
+        supabase
+          .from("consultation_bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "completed"),
+        supabase
+          .from("consultation_bookings")
+          .select(
+            "id, patient_id, nutritionist_id, slot_id, status, created_at",
+          )
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ]);
 
       if (expertResponse.error) throw expertResponse.error;
       if (todayResponse.error) throw todayResponse.error;
@@ -213,7 +229,7 @@ export default function AdminDashboard() {
 
       const experts = (expertResponse.data ?? []) as ExpertRow[];
       const bookings = (bookingResponse.data ?? []) as BookingRow[];
-      
+
       // Mengambil nama pasien untuk monitoring Admin
       const patientNameMap = new Map<string, string>();
 
@@ -228,10 +244,7 @@ export default function AdminDashboard() {
         if (patientNamesError) throw patientNamesError;
 
         for (const item of patientNames ?? []) {
-          patientNameMap.set(
-            item.booking_id,
-            item.patient_name
-          );
+          patientNameMap.set(item.booking_id, item.patient_name);
         }
       }
 
@@ -246,7 +259,9 @@ export default function AdminDashboard() {
         if (error) throw error;
         slotRows = (data ?? []) as SlotRow[];
       }
-      const startsAtBySlot = new Map(slotRows.map((slot) => [slot.id, slot.starts_at]));
+      const startsAtBySlot = new Map(
+        slotRows.map((slot) => [slot.id, slot.starts_at]),
+      );
 
       setSummary({
         totalExperts: experts.length,
@@ -258,12 +273,13 @@ export default function AdminDashboard() {
         monitoring: bookings.map((booking) => ({
           id: booking.id,
           // Data pasien disamarkan. Admin tidak perlu membuka profil kesehatan.
-          
-patientLabel:
-  patientNameMap.get(booking.id) ??
-  `Pasien • ${booking.id.slice(0, 6).toUpperCase()}`,
 
-          nutritionistName: expertNames.get(booking.nutritionist_id) ?? "Ahli gizi",
+          patientLabel:
+            patientNameMap.get(booking.id) ??
+            `Pasien • ${booking.id.slice(0, 6).toUpperCase()}`,
+
+          nutritionistName:
+            expertNames.get(booking.nutritionist_id) ?? "Ahli gizi",
           startsAt: startsAtBySlot.get(booking.slot_id) ?? null,
           status: booking.status,
           createdAt: booking.created_at,
@@ -271,7 +287,9 @@ patientLabel:
       });
     } catch (err) {
       setSummary(null);
-      setErrorMessage(err instanceof Error ? err.message : "Gagal memuat Dashboard Admin.");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Gagal memuat Dashboard Admin.",
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -313,7 +331,12 @@ patientLabel:
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[GREEN]} tintColor={GREEN} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            colors={[GREEN]}
+            tintColor={GREEN}
+          />
         }
       >
         <View style={s.datePill}>
@@ -321,92 +344,72 @@ patientLabel:
           <Text style={s.dateText}>{displayDate()}</Text>
         </View>
         <Text style={s.welcome}>Selamat Datang, Admin!</Text>
-        <Text style={s.description}>Ringkasan operasional layanan gizi hari ini</Text>
+        <Text style={s.description}>
+          Ringkasan operasional layanan gizi hari ini
+        </Text>
 
-        
-{/* TOMBOL CEPAT ADMIN */}
-<View style={s.quickActions}>
-  <Pressable
-    style={[s.quickButton, s.quickPrimary]}
-    onPress={() => router.push("/admin-nutritionist-create")}
-  >
-    <Ionicons
-      name="person-add-outline"
-      size={16}
-      color="#FFFFFF"
-    />
-    <Text style={s.quickPrimaryText}>
-      Tambah Ahli Gizi
-    </Text>
-  </Pressable>
+        {/* TOMBOL CEPAT ADMIN */}
+        <View style={s.quickActions}>
+          <Pressable
+            style={[s.quickButton, s.quickPrimary]}
+            onPress={() => router.push("/admin-nutritionist-create")}
+          >
+            <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
+            <Text style={s.quickPrimaryText}>Tambah Ahli Gizi</Text>
+          </Pressable>
 
-  <Pressable
-    style={[s.quickButton, s.quickOutline]}
-    onPress={() => futurePage("Kelola Jadwal")}
-  >
-    <Ionicons
-      name="calendar-outline"
-      size={16}
-      color={GREEN}
-    />
-    <Text style={s.quickOutlineText}>
-      Kelola Jadwal
-    </Text>
-  </Pressable>
-</View>
+          <Pressable
+            style={[s.quickButton, s.quickOutline]}
+            onPress={() => router.push("/admin-schedule")}
+          >
+            <Ionicons name="calendar-outline" size={16} color={GREEN} />
+            <Text style={s.quickOutlineText}>Kelola Jadwal</Text>
+          </Pressable>
+        </View>
 
-{/* TOMBOL PENGAJUAN MITRA - BARIS BARU */}
-<Pressable
-  onPress={() => router.push("/admin-applications")}
-  style={{
-    marginTop: 10,
-    marginBottom: 12,
-    backgroundColor: "#EAF8EF",
-    borderWidth: 1,
-    borderColor: "#CBEAD8",
-    borderRadius: 16,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  }}
->
-  <Ionicons
-    name="document-text-outline"
-    size={20}
-    color={GREEN}
-  />
+        {/* TOMBOL PENGAJUAN MITRA - BARIS BARU */}
+        <Pressable
+          onPress={() => router.push("/admin-applications")}
+          style={{
+            marginTop: 10,
+            marginBottom: 12,
+            backgroundColor: "#EAF8EF",
+            borderWidth: 1,
+            borderColor: "#CBEAD8",
+            borderRadius: 16,
+            paddingVertical: 13,
+            paddingHorizontal: 15,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <Ionicons name="document-text-outline" size={20} color={GREEN} />
 
-  <View style={{ flex: 1 }}>
-    <Text
-      style={{
-        fontSize: 13,
-        fontWeight: "700",
-        color: "#173C2D",
-      }}
-    >
-      Pengajuan Mitra
-    </Text>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: "#173C2D",
+              }}
+            >
+              Pengajuan Mitra
+            </Text>
 
-    <Text
-      style={{
-        fontSize: 10,
-        color: "#71877B",
-        marginTop: 3,
-      }}
-    >
-      Lihat pengajuan calon ahli gizi
-    </Text>
-  </View>
+            <Text
+              style={{
+                fontSize: 10,
+                color: "#71877B",
+                marginTop: 3,
+              }}
+            >
+              Lihat pengajuan calon ahli gizi
+            </Text>
+          </View>
 
-  <Ionicons
-    name="chevron-forward"
-    size={18}
-    color={GREEN}
-  />
-</Pressable>
-
+          <Ionicons name="chevron-forward" size={18} color={GREEN} />
+        </Pressable>
 
         {loading && !summary ? (
           <View style={s.center}>
@@ -419,7 +422,8 @@ patientLabel:
             <Text style={s.errorTitle}>Dashboard belum dapat dimuat</Text>
             <Text style={s.emptySubtitle}>{errorMessage}</Text>
             <Text style={s.errorNote}>
-              Periksa role admin dan kebijakan SELECT (RLS) di Supabase. Jangan nonaktifkan RLS.
+              Periksa role admin dan kebijakan SELECT (RLS) di Supabase. Jangan
+              nonaktifkan RLS.
             </Text>
             <Pressable style={s.retryButton} onPress={() => void loadData()}>
               <Text style={s.retryText}>Coba Lagi</Text>
@@ -432,14 +436,22 @@ patientLabel:
               <Text style={s.sectionHint}>Data Supabase</Text>
             </View>
             <View style={s.statsGrid}>
-              <StatCard icon="people-outline" value={summary.totalExperts} label="Total Ahli Gizi" />
+              <StatCard
+                icon="people-outline"
+                value={summary.totalExperts}
+                label="Total Ahli Gizi"
+              />
               <StatCard
                 icon="person-circle-outline"
                 value={summary.linkedExperts}
                 label="Akun Ahli Gizi Terhubung"
                 hint="Sudah punya login"
               />
-              <StatCard icon="calendar-outline" value={summary.bookingsToday} label="Booking Hari Ini" />
+              <StatCard
+                icon="calendar-outline"
+                value={summary.bookingsToday}
+                label="Booking Hari Ini"
+              />
               <StatCard
                 icon="checkmark-circle-outline"
                 value={summary.completedTotal}
@@ -457,9 +469,15 @@ patientLabel:
             </View>
             {summary.monitoring.length === 0 ? (
               <View style={s.emptyCard}>
-                <Ionicons name="calendar-clear-outline" size={25} color={GREEN} />
+                <Ionicons
+                  name="calendar-clear-outline"
+                  size={25}
+                  color={GREEN}
+                />
                 <Text style={s.emptyTitle}>Belum ada booking</Text>
-                <Text style={s.emptySubtitle}>Booking terbaru akan muncul di sini.</Text>
+                <Text style={s.emptySubtitle}>
+                  Booking terbaru akan muncul di sini.
+                </Text>
               </View>
             ) : (
               summary.monitoring.slice(0, 3).map((item) => {
@@ -471,15 +489,23 @@ patientLabel:
                         <Text style={s.smallLabel}>Pasien</Text>
                         <Text style={s.patientLabel}>{item.patientLabel}</Text>
                       </View>
-                      <View style={[s.statusPill, { backgroundColor: status.bg }]}>
-                        <Text style={[s.statusText, { color: status.fg }]}>{status.text}</Text>
+                      <View
+                        style={[s.statusPill, { backgroundColor: status.bg }]}
+                      >
+                        <Text style={[s.statusText, { color: status.fg }]}>
+                          {status.text}
+                        </Text>
                       </View>
                     </View>
                     <View style={s.bookingMeta}>
                       <Ionicons name="medkit-outline" size={13} color={GREEN} />
-                      <Text style={s.bookingExpert} numberOfLines={1}>{item.nutritionistName}</Text>
+                      <Text style={s.bookingExpert} numberOfLines={1}>
+                        {item.nutritionistName}
+                      </Text>
                       <Ionicons name="time-outline" size={13} color={MUTED} />
-                      <Text style={s.bookingTime}>{displaySchedule(item.startsAt)}</Text>
+                      <Text style={s.bookingTime}>
+                        {displaySchedule(item.startsAt)}
+                      </Text>
                     </View>
                   </View>
                 );
@@ -498,12 +524,16 @@ patientLabel:
                     <Ionicons name="calendar-outline" size={18} color={GREEN} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.activityTitle}>Booking konsultasi dibuat</Text>
+                    <Text style={s.activityTitle}>
+                      Booking konsultasi dibuat
+                    </Text>
                     <Text style={s.activitySubtitle} numberOfLines={2}>
                       {item.patientLabel} · {item.nutritionistName}
                     </Text>
                   </View>
-                  <Text style={s.activityWhen}>{relativeTime(item.createdAt)}</Text>
+                  <Text style={s.activityWhen}>
+                    {relativeTime(item.createdAt)}
+                  </Text>
                 </View>
               ))
             )}
@@ -513,38 +543,49 @@ patientLabel:
         <View style={s.privacyCard}>
           <Ionicons name="lock-closed-outline" size={20} color={GREEN} />
           <Text style={s.privacyText}>
-            <Text style={{ fontWeight: "800" }}>Mode Administrator Operasional. </Text>
-            Admin hanya memantau data booking, bukan isi chat atau catatan kesehatan pasien.
+            <Text style={{ fontWeight: "800" }}>
+              Mode Administrator Operasional.{" "}
+            </Text>
+            Admin hanya memantau data booking, bukan isi chat atau catatan
+            kesehatan pasien.
           </Text>
         </View>
       </ScrollView>
 
       <View style={s.bottomNav}>
-        {([
-          { key: "home", label: "Beranda", icon: "home-outline" },
-          { key: "experts", label: "Ahli Gizi", icon: "people-outline" },
-          { key: "schedule", label: "Jadwal", icon: "calendar-outline" },
-          { key: "profile", label: "Profil", icon: "person-outline" },
-        ] as const).map((item) => {
+        {(
+          [
+            { key: "home", label: "Beranda", icon: "home-outline" },
+            { key: "experts", label: "Ahli Gizi", icon: "people-outline" },
+            { key: "schedule", label: "Jadwal", icon: "calendar-outline" },
+            { key: "profile", label: "Profil", icon: "person-outline" },
+          ] as const
+        ).map((item) => {
           const active = item.key === "home";
           return (
             <Pressable
               key={item.key}
               style={s.navItem}
-              
-onPress={() => {
-  if (item.key === "experts") {
-    router.push("/admin-nutritionists");
-  } else if (!active) {
-    futurePage(item.label);
-  }
-}}
-
+              onPress={() => {
+                if (item.key === "experts") {
+                  router.push("/admin-nutritionists");
+                } else if (item.key === "schedule") {
+                  router.push("/admin-schedule");
+                } else if (item.key === "profile") {
+                  router.push("/admin-profile");
+                }
+              }}
             >
               <View style={[s.navIcon, active && s.navIconActive]}>
-                <Ionicons name={item.icon} size={22} color={active ? GREEN : "#82938A"} />
+                <Ionicons
+                  name={item.icon}
+                  size={22}
+                  color={active ? GREEN : "#82938A"}
+                />
               </View>
-              <Text style={[s.navLabel, active && s.navLabelActive]}>{item.label}</Text>
+              <Text style={[s.navLabel, active && s.navLabelActive]}>
+                {item.label}
+              </Text>
             </Pressable>
           );
         })}
@@ -556,11 +597,21 @@ onPress={() => {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   header: {
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14,
-    gap: 11, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: BORDER,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 11,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
   },
   brandIcon: {
-    width: 43, height: 43, borderRadius: 16, alignItems: "center", justifyContent: "center",
+    width: 43,
+    height: 43,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#DAF8E7",
   },
   brandName: { fontSize: 16, fontWeight: "800", color: GREEN },
@@ -568,98 +619,219 @@ const s = StyleSheet.create({
   bellButton: { padding: 8 },
   content: { paddingHorizontal: 17, paddingTop: 18, paddingBottom: 30 },
   datePill: {
-    alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7,
-    backgroundColor: "#DDF9E9", paddingHorizontal: 11, paddingVertical: 7, borderRadius: 24,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: "#DDF9E9",
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 24,
   },
   dateText: { color: GREEN, fontSize: 11, fontWeight: "700" },
   welcome: { color: INK, fontSize: 23, fontWeight: "800", marginTop: 14 },
   description: { color: MUTED, fontSize: 12, marginTop: 5 },
-  quickActions: { flexDirection: "row", gap: 10, marginTop: 19, marginBottom: 25 },
+  quickActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 19,
+    marginBottom: 25,
+  },
   quickButton: {
-    minHeight: 45, borderRadius: 26, flex: 1, flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 7, paddingHorizontal: 8,
+    minHeight: 45,
+    borderRadius: 26,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingHorizontal: 8,
   },
   quickPrimary: { backgroundColor: GREEN },
-  quickOutline: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#B9E6D0" },
+  quickOutline: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#B9E6D0",
+  },
   quickPrimaryText: { color: "#FFFFFF", fontWeight: "800", fontSize: 11 },
   quickOutlineText: { color: GREEN, fontWeight: "800", fontSize: 11 },
   sectionHeading: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginBottom: 12, marginTop: 3,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    marginTop: 3,
   },
   sectionTitle: { color: INK, fontSize: 16, fontWeight: "800" },
   sectionHint: { color: MUTED, fontSize: 10 },
   seeAll: { color: GREEN, fontWeight: "700", fontSize: 11 },
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 24 },
-  statCard: {
-    width: "48%", flexGrow: 1, minHeight: 114, padding: 13, backgroundColor: "#FFFFFF",
-    borderRadius: 20, borderWidth: 1, borderColor: BORDER,
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 24,
   },
-  statTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 4 },
+  statCard: {
+    width: "48%",
+    flexGrow: 1,
+    minHeight: 114,
+    padding: 13,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  statTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4,
+  },
   statIcon: {
-    backgroundColor: "#DDF9EB", width: 32, height: 32, borderRadius: 16,
-    alignItems: "center", justifyContent: "center",
+    backgroundColor: "#DDF9EB",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   statIconBlue: { backgroundColor: "#ECF0FF" },
   statHint: {
-    backgroundColor: "#E3F9EC", paddingHorizontal: 7, paddingVertical: 4,
-    borderRadius: 12, color: GREEN, fontSize: 8, fontWeight: "700", flexShrink: 1,
+    backgroundColor: "#E3F9EC",
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 12,
+    color: GREEN,
+    fontSize: 8,
+    fontWeight: "700",
+    flexShrink: 1,
   },
   statValue: { fontWeight: "900", color: INK, fontSize: 24, marginTop: 12 },
   statLabel: { color: INK, fontSize: 11, marginTop: 3 },
   bookingCard: {
-    backgroundColor: "#FFFFFF", borderRadius: 18, padding: 13, marginBottom: 9,
-    borderWidth: 1, borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 13,
+    marginBottom: 9,
+    borderWidth: 1,
+    borderColor: BORDER,
   },
   bookingTop: { flexDirection: "row", alignItems: "flex-start", gap: 7 },
   smallLabel: { fontSize: 10, color: MUTED },
   patientLabel: { fontSize: 13, fontWeight: "800", color: INK, marginTop: 4 },
-  statusPill: { paddingVertical: 6, paddingHorizontal: 8, borderRadius: 15, maxWidth: "53%" },
+  statusPill: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 15,
+    maxWidth: "53%",
+  },
   statusText: { fontSize: 9, fontWeight: "800" },
   bookingMeta: {
-    flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 5,
-    borderTopWidth: 1, borderTopColor: "#EEF3EF", marginTop: 12, paddingTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 5,
+    borderTopWidth: 1,
+    borderTopColor: "#EEF3EF",
+    marginTop: 12,
+    paddingTop: 10,
   },
   bookingExpert: { color: MUTED, fontSize: 10, flexShrink: 1, marginRight: 9 },
   bookingTime: { color: MUTED, fontSize: 10 },
   activityCard: {
-    flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF",
-    borderWidth: 1, borderColor: BORDER, borderRadius: 17, padding: 12, marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 17,
+    padding: 12,
+    marginBottom: 8,
   },
   activityIcon: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: "#DFF8EA",
-    alignItems: "center", justifyContent: "center",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#DFF8EA",
+    alignItems: "center",
+    justifyContent: "center",
   },
   activityTitle: { color: INK, fontWeight: "800", fontSize: 11 },
   activitySubtitle: { color: MUTED, fontSize: 10, marginTop: 4 },
   activityWhen: { color: MUTED, fontSize: 9, alignSelf: "flex-start" },
   privacyCard: {
-    flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: "#E9F9F2",
-    borderRadius: 17, padding: 14, marginTop: 17,
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    backgroundColor: "#E9F9F2",
+    borderRadius: 17,
+    padding: 14,
+    marginTop: 17,
   },
   privacyText: { color: "#406A58", fontSize: 11, lineHeight: 17, flex: 1 },
-  center: { alignItems: "center", justifyContent: "center", padding: 45, gap: 10 },
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 45,
+    gap: 10,
+  },
   emptyCard: {
-    backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: BORDER, borderRadius: 17,
-    padding: 22, alignItems: "center", gap: 8, marginBottom: 22,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 17,
+    padding: 22,
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 22,
   },
   emptyTitle: { color: INK, fontSize: 14, fontWeight: "800" },
-  emptySubtitle: { color: MUTED, fontSize: 12, lineHeight: 18, textAlign: "center" },
+  emptySubtitle: {
+    color: MUTED,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: "center",
+  },
   errorCard: {
-    backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: BORDER,
-    borderRadius: 18, alignItems: "center", gap: 11, padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 18,
+    alignItems: "center",
+    gap: 11,
+    padding: 20,
   },
   errorTitle: { color: INK, fontSize: 15, fontWeight: "800" },
-  errorNote: { color: "#9E6B1F", fontSize: 11, textAlign: "center", lineHeight: 17 },
-  retryButton: { backgroundColor: GREEN, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 20 },
+  errorNote: {
+    color: "#9E6B1F",
+    fontSize: 11,
+    textAlign: "center",
+    lineHeight: 17,
+  },
+  retryButton: {
+    backgroundColor: GREEN,
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 20,
+  },
   retryText: { color: "#FFFFFF", fontWeight: "800", fontSize: 12 },
   bottomNav: {
-    flexDirection: "row", backgroundColor: "#FFFFFF", borderTopColor: BORDER,
-    borderTopWidth: 1, paddingHorizontal: 8, paddingTop: 7, paddingBottom: 5,
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderTopColor: BORDER,
+    borderTopWidth: 1,
+    paddingHorizontal: 8,
+    paddingTop: 7,
+    paddingBottom: 5,
   },
   navItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3 },
   navIcon: {
-    width: 69, height: 39, borderRadius: 24, alignItems: "center", justifyContent: "center",
+    width: 69,
+    height: 39,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
   },
   navIconActive: { backgroundColor: "#B9F7D9" },
   navLabel: { fontSize: 10, color: "#82938A", fontWeight: "600" },

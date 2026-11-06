@@ -384,7 +384,7 @@ onPress={() =>
           <Ionicons name="pencil-outline" size={19} color="#FFFFFF"/>
           <Text style={s.whiteButtonText}>Edit Profil Ahli Gizi</Text>
         </Pressable>
-        <Pressable style={s.secondaryButton} onPress={() => unfinishedAction("Kelola Jadwal Praktik")}>
+        <Pressable style={s.secondaryButton} onPress={() => router.push({ pathname: "/admin-schedule", params: { nutritionistId: expert.id } })}>
           <Ionicons name="calendar-outline" size={19} color={DEEP}/>
           <Text style={s.secondaryButtonText}>Kelola Jadwal Praktik</Text>
         </Pressable>
@@ -424,8 +424,8 @@ onPress={() =>
       <View style={s.bottomNav}>
         <NavItem label="Beranda" icon="home-outline" onPress={() => router.replace("/admin-dashboard")}/>
         <NavItem label="Ahli Gizi" icon="people-outline" active onPress={() => router.replace("/admin-nutritionists")}/>
-        <NavItem label="Jadwal" icon="calendar-outline" onPress={() => unfinishedAction("Kelola Jadwal")}/>
-        <NavItem label="Profil" icon="person-outline" onPress={() => unfinishedAction("Profil Admin")}/>
+        <NavItem label="Jadwal" icon="calendar-outline" onPress={() => router.replace("/admin-schedule")}/>
+        <NavItem label="Profil" icon="person-outline" onPress={() => router.replace("/admin-profile")}/>
       </View>
     </SafeAreaView>
   );

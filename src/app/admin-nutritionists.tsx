@@ -367,11 +367,11 @@ onPress={() =>
           </View>
           <Text style={s.navActiveText}>Ahli Gizi</Text>
         </Pressable>
-        <Pressable style={s.navItem} onPress={() => comingNext("Kelola Jadwal")}>
+        <Pressable style={s.navItem} onPress={() => router.replace("/admin-schedule")}>
           <Ionicons name="calendar-outline" size={23} color={MUTED} />
           <Text style={s.navText}>Jadwal</Text>
         </Pressable>
-        <Pressable style={s.navItem} onPress={() => comingNext("Profil Admin")}>
+        <Pressable style={s.navItem} onPress={() => router.replace("/admin-profile")}>
           <Ionicons name="person-outline" size={23} color={MUTED} />
           <Text style={s.navText}>Profil</Text>
         </Pressable>
